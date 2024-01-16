@@ -36,18 +36,19 @@ async def download_image(url, filename):
         if "Image #" not in filename:
             file_prefix = os.path.splitext(filename)[0]
             # Split the image
-            top_left, top_right, bottom_left, bottom_right = split_image(input_file)
+            split_image(input_file, file_prefix)
+            #top_left, top_right, bottom_left, bottom_right = split_image(input_file)
             # Save the output images with dynamic names in the output folder
-            top_left.save(os.path.join(output_folder, file_prefix + "_top_left.jpg"))
-            top_right.save(os.path.join(output_folder, file_prefix + "_top_right.jpg"))
-            bottom_left.save(os.path.join(output_folder, file_prefix + "_bottom_left.jpg"))
-            bottom_right.save(os.path.join(output_folder, file_prefix + "_bottom_right.jpg"))
+            #top_left.save(os.path.join(output_folder, file_prefix + "_0.png"))
+            #top_right.save(os.path.join(output_folder, file_prefix + "_1.png"))
+            #bottom_left.save(os.path.join(output_folder, file_prefix + "_2.png"))
+            #bottom_right.save(os.path.join(output_folder, file_prefix + "_3.png"))
         else:
             os.rename(f"{directory}/{input_folder}/{filename}", f"{directory}/{output_folder}/{filename}")
         # Delete the input file
         os.remove(f"{directory}/{input_folder}/{filename}")
 
-def split_image(image_file):
+def split_image(image_file, file_prefix):
     with Image.open(image_file) as im:
         # Get the width and height of the original image
         width, height = im.size
@@ -59,7 +60,14 @@ def split_image(image_file):
         top_right = im.crop((mid_x, 0, width, mid_y))
         bottom_left = im.crop((0, mid_y, mid_x, height))
         bottom_right = im.crop((mid_x, mid_y, width, height))
-        return top_left, top_right, bottom_left, bottom_right
+        
+        # Save the output images with dynamic names
+        top_left.save(f"{file_prefix}_0.png")
+        top_right.save(f"{file_prefix}_1.png")
+        bottom_left.save(f"{file_prefix}_2.png")
+        bottom_right.save(f"{file_prefix}_3.png")
+        
+        # return top_left, top_right, bottom_left, bottom_right
 
 async def handle_special_image(input_file, output_folder, filename):     
     os.rename(input_file, os.path.join(output_folder, filename))
@@ -71,17 +79,38 @@ async def on_ready():
 @client.event
 async def on_message(message):
     print(message.content)
+    
+    # Determine the output folder based on the channel's ID
+    # The folder has format channelname_uniqueid this is due to perhaps channel naming across servers
+    output_folder = f"output_{message.channel.name}_{message.channel.id}"
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    
     for attachment in message.attachments:
-        if "Upscaled by" in message.content:
-            file_prefix = 'UPSCALED_'
-        else:
-            file_prefix = ''
+        if "Upscaled by" in message.content or "Upscaled (2x) by" in message.content or "Upscaled (4x) by" in message.content:
+            try:
+                response = requests.get(attachment.url)
+                if response.status_code == 200:
+                    output_folder = f"output_{message.channel.name}_{message.channel.id}"
+                    if not os.path.exists(output_folder):
+                        os.makedirs(output_folder)
+                     # Add "-upscale" to the filename before the extension
+                    filename = os.path.splitext(attachment.filename)[0] + "-upscale" + os.path.splitext(attachment.filename)[1]
+                    with open(os.path.join(output_folder, filename), "wb") as f:
+                        f.write(response.content)
+            except Exception as e:
+                print(f"Error saving upscaled image: {e}")
+                await asyncio.sleep(10)
+                continue
+    
+        # exit the loop
+        return
         
         if "Image #" in message.content and attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
             try:
                 response = requests.get(attachment.url)
                 if response.status_code == 200:
-                    output_folder = "output"
+                    output_folder = f"output_{message.channel.name}_{message.channel.id}"
                     if not os.path.exists(output_folder):
                         os.makedirs(output_folder)
                     with open(os.path.join(output_folder, attachment.filename), "wb") as f:
@@ -89,12 +118,13 @@ async def on_message(message):
             except:
                 await asyncio.sleep(10)
                 continue
+                
         elif attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
             try:
                 response = requests.get(attachment.url)
                 if response.status_code == 200:
                     input_folder = "input"
-                    output_folder = "output"
+                    output_folder = f"output_{message.channel.name}_{message.channel.id}"
                     if not os.path.exists(input_folder):
                         os.makedirs(input_folder)
                     if not os.path.exists(output_folder):
@@ -105,10 +135,10 @@ async def on_message(message):
                     input_file = os.path.join(input_folder, attachment.filename)
                     file_prefix = os.path.splitext(attachment.filename)[0]
                     top_left, top_right, bottom_left, bottom_right = split_image(input_file)
-                    top_left.save(os.path.join(output_folder, file_prefix + "_top_left.jpg"))
-                    top_right.save(os.path.join(output_folder, file_prefix + "_top_right.jpg"))
-                    bottom_left.save(os.path.join(output_folder, file_prefix + "_bottom_left.jpg"))
-                    bottom_right.save(os.path.join(output_folder, file_prefix + "_bottom_right.jpg"))
+                    top_left.save(os.path.join(output_folder, file_prefix + "_0.png"))
+                    top_right.save(os.path.join(output_folder, file_prefix + "_1.png"))
+                    bottom_left.save(os.path.join(output_folder, file_prefix + "_2.png"))
+                    bottom_right.save(os.path.join(output_folder, file_prefix + "_3.png"))
                     os.remove(f"{directory}/{input_folder}/{attachment.filename}")
             except:
                 await asyncio.sleep(10)
@@ -124,7 +154,7 @@ async def on_message(message):
 
                     # Save the message content to a text file
                     message_text = message.content
-                    text_filename = f"{message.id}.txt"
+                    text_filename = f"{attachment.filename}.txt"
                     with open(os.path.join(text_folder, text_filename), "w", encoding="utf-8") as text_file:
                         text_file.write(message_text)
                 except Exception as e:
@@ -145,7 +175,7 @@ async def on_message(message):
 
                             response = requests.get(attachment.url)
                             if response.status_code == 200:
-                                output_folder = "output"
+                                output_folder = f"output_{message.channel.name}_{message.channel.id}"
                                 if not os.path.exists(output_folder):
                                     os.makedirs(output_folder)
                                 with open(os.path.join(output_folder, attachment.filename), "wb") as f:
@@ -160,7 +190,7 @@ async def on_message(message):
 
                                 # Save the message content to a text file
                                 message_text = msg.content
-                                text_filename = f"{msg.id}.txt"
+                                text_filename = f"{attachment.filename}.txt"
                                 with open(os.path.join(text_folder, text_filename), "w", encoding="utf-8") as text_file:
                                     text_file.write(message_text)
                             except Exception as e:
@@ -179,7 +209,7 @@ async def on_message(message):
                             response = requests.get(attachment.url)
                             if response.status_code == 200:
                                 input_folder = "input"
-                                output_folder = "output"
+                                output_folder = f"output_{message.channel.name}_{message.channel.id}"
                                 if not os.path.exists(input_folder):
                                     os.makedirs(input_folder)
                                 if not os.path.exists(output_folder):
@@ -190,10 +220,10 @@ async def on_message(message):
                                 input_file = os.path.join(input_folder, attachment.filename)
                                 file_prefix = os.path.splitext(attachment.filename)[0]
                                 top_left, top_right, bottom_left, bottom_right = split_image(input_file)
-                                top_left.save(os.path.join(output_folder, file_prefix + "_top_left.jpg"))
-                                top_right.save(os.path.join(output_folder, file_prefix + "_top_right.jpg"))
-                                bottom_left.save(os.path.join(output_folder, file_prefix + "_bottom_left.jpg"))
-                                bottom_right.save(os.path.join(output_folder, file_prefix + "_bottom_right.jpg"))
+                                top_left.save(os.path.join(output_folder, file_prefix + "_0.png"))
+                                top_right.save(os.path.join(output_folder, file_prefix + "_1.png"))
+                                bottom_left.save(os.path.join(output_folder, file_prefix + "_2.png"))
+                                bottom_right.save(os.path.join(output_folder, file_prefix + "_3.png"))
                                 os.remove(f"{directory}/{input_folder}/{attachment.filename}")
                         
                         # Save the associated message content as a text file
@@ -205,7 +235,7 @@ async def on_message(message):
 
                                 # Save the message content to a text file
                                 message_text = msg.content
-                                text_filename = f"{msg.id}.txt"
+                                text_filename = f"{attachment.filename}.txt"
                                 with open(os.path.join(text_folder, text_filename), "w", encoding="utf-8") as text_file:
                                     text_file.write(message_text)
                             except Exception as e:
