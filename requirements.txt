@@ -2,3 +2,6 @@ discord.py
 python-dotenv
 Pillow
 requests
+os
+time
+asyncio
