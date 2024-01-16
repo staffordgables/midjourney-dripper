@@ -9,3 +9,5 @@ Unfortunately, the original code split all images - whether they were grids or n
 Adding to the code is the dumping of Discord message content so that you may reconstruct your prompts.  Please remember, images have the job id imbedded in the name.
 
 Images are dropped in a subdirectory off of the one in which the script resides named "output"; prompts share the same name as the images and are located in the directory "message_text."
+
+Why dripper? Because sometimes it feels like you're watching a faucet dripping water when you have MidJourney in relax mode.
